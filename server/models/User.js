@@ -10,11 +10,11 @@ const userSchema = new mongoose.Schema(
     enrolledCourses: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "course",
+        ref: "Course",
       },
     ],
   },
-  { timeseries: true }
+  { timestamps: true }
 );
 
 const User = mongoose.model("User", userSchema);
