@@ -1,16 +1,19 @@
 import React, { useContext, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Await, useParams } from "react-router-dom";
 import { AppContext } from "../../context/AppContext";
 import Loading from "../../components/students/Loading";
 import { assets } from "../../assets/assets";
 import humanizeDuration from "humanize-duration";
 import Footer from "../../components/students/Footer";
 import YouTube from "react-youtube";
-
+import axios from "axios";
+import { toast } from "react-toastify";
 const CourseDEtails = () => {
   const { id } = useParams();
-  const [courseData, setcourseData] = useState(null);
-  const [openSection, setOpenSection] = useState([]);
+  console.log("Course ID:", id);
+
+  const [courseData, setCourseData] = useState(null);
+  const [openSection, setOpenSection] = useState({});
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
   const [playerData, setPlayerData] = useState(null);
 
@@ -21,19 +24,73 @@ const CourseDEtails = () => {
     calculateCourseDuration,
     calculateNoOfLectures,
     currency,
+    backendUrl,
+    userData,
+    getToken,
   } = useContext(AppContext);
+
   const fetchCourseData = async () => {
-    const findCourse = allCourses.find((course) => course._id === id);
-    setcourseData(findCourse);
+    try {
+      const { data } = await axios.get(backendUrl + "/api/course/" + id);
+      if (data.success) {
+        setCourseData(data.courseData);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const enrolledCourse = async () => {
+    try {
+      if (!userData) {
+        return toast.warn("login to Enroll");
+      }
+      if (isAlreadyEnrolled) {
+        return toast.warn("Already Enrolled");
+      }
+      const token = await getToken();
+      const { data } = await axios.post(
+        backendUrl + "/api/user/purchase",
+        { courseId: courseData._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (data.success) {
+        const { session_url } = data;
+        window.location.replace(session_url);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
     fetchCourseData();
-  }, [fetchCourseData]);
+  }, []);
+
+  useEffect(() => {
+    if (userData && courseData) {
+      setIsAlreadyEnrolled(userData.enrolledCourses.includes(courseData._id));
+    }
+  }, [userData, courseData]);
 
   const toggleSection = (index) => {
     setOpenSection((prev) => ({ ...prev, [index]: !prev[index] }));
   };
+
+  // ✅ Prevent rendering if courses are empty
+  if (!allCourses || allCourses.length === 0) {
+    return <Loading />;
+  }
+
+  if (!courseData) {
+    return <Loading />;
+  }
+
+  console.log("Ratings---------------------checking", courseData.courseRating);
 
   return courseData ? (
     <>
@@ -69,22 +126,25 @@ const CourseDEtails = () => {
               ))}
             </div>
             <p className="text-gray-500">
-              ( {courseData.courseRatings.length}{" "}
-              {courseData.courseRatings.length > 1 ? "ratings" : "rating"})
+              ( {courseData.courseRating.length}{" "}
+              {courseData.courseRating.length > 1 ? "ratings" : "rating"})
             </p>
             <p className="text-blue-600">
-              {courseData.enrolledStudents.length}{" "}
-              {courseData.enrolledStudents.length > 1 ? "students" : "student"}
+              {courseData.enrolledStudents?.length}{" "}
+              {courseData.enrolledStudents?.length > 1 ? "students" : "student"}
             </p>
           </div>
 
           <p>
-            Course By <span className="text-blue-600 underline">Abed</span>
+            Course By{" "}
+            <span className="text-blue-600 underline">
+              {courseData.educator.name}
+            </span>
           </p>
           <div className="pt-8 text-gray-800">
             <h1 className="text-xxl font-semibold">Course Structure</h1>
             <div className="pt-5">
-              {courseData.courseContent.map((chapter, index) => (
+              {courseData?.courseContent?.map((chapter, index) => (
                 <div
                   key={index}
                   className="border border-gray-300 bg-white mb-2 rounded"
@@ -227,11 +287,14 @@ const CourseDEtails = () => {
               </div>
             </div>
 
-            <button className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium">
+            <button
+              onClick={enrolledCourse}
+              className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium"
+            >
               {isAlreadyEnrolled ? "Already Enrolled" : "Enroll now"}
             </button>
 
-            <div>
+            <div className="pt-6">
               <p className="md:text-xl pt-5 text-lg font-medium text-gray-800 ">
                 what's in this course
               </p>

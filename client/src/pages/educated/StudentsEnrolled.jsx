@@ -1,15 +1,37 @@
-import React, { useEffect, useState } from "react";
-import { dummyStudentEnrolled } from "../../assets/assets";
+import React, { useContext, useEffect, useState } from "react";
 import Loading from "../../components/students/Loading";
+import { AppContext } from "../../context/AppContext";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const StudentsEnrolled = () => {
+  const { backendUrl, getToken, isEducator } = useContext(AppContext);
+
   const [enrolledStudents, setenrolledStudents] = useState(null);
+
   const fetchEnrolledStudents = async () => {
-    setenrolledStudents(dummyStudentEnrolled);
+    try {
+      console.log("🔹 Fetching enrolled students...");
+      const token = await getToken();
+      const { data } = await axios.get(
+        backendUrl + "/api/educator/enrolled-students",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log("✅ API Response:", data);
+      if (data.success) {
+        setenrolledStudents(data.enrolledStudents.reverse());
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
   useEffect(() => {
-    fetchEnrolledStudents();
-  }, []);
+    if (isEducator) {
+      fetchEnrolledStudents();
+    }
+  }, [isEducator]);
 
   return enrolledStudents ? (
     <div className="min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
@@ -40,7 +62,7 @@ const StudentsEnrolled = () => {
                 </td>
                 <td className="px-4 py-3 truncate">{item.courseTitle}</td>
                 <td className="px-4 py-3 hidden sm:table-cell">
-                  {new Date(item.purchaseDate).toLocaleDateString()}
+                  {new Date(item.purchaseData).toLocaleDateString()}
                 </td>
               </tr>
             ))}

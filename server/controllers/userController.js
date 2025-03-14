@@ -22,7 +22,6 @@ export const getUserData = async (req, res) => {
 export const userEnrolledCourses = async (req, res) => {
   try {
     const userId = req.auth.userId;
-    console.log(userId);
 
     const userData = await User.findById(userId).populate("enrolledCourses");
 
@@ -41,6 +40,7 @@ export const purchaseCourse = async (req, res) => {
 
     const userData = await User.findById(userId);
     const courseData = await Course.findById(courseId);
+
     if (!userData || !courseData) {
       return res.json({ success: false, message: "Data not found" });
     }
@@ -92,8 +92,25 @@ export const purchaseCourse = async (req, res) => {
 // update user course progress
 export const updateUserCourseProgress = async (req, res) => {
   try {
+    // Extract userId from authentication
     const userId = req.auth.userId;
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized: No userId found" });
+    }
+
     const { courseId, lectureId } = req.body;
+
+    // Validate lectureId
+    if (!lectureId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request: Missing lectureId",
+      });
+    }
+
     const progressData = await CourseProgrss.findOne({ userId, courseId });
 
     if (progressData) {
@@ -123,6 +140,7 @@ export const getUserCourseProgress = async (req, res) => {
   try {
     const userId = req.auth.userId;
     const { courseId } = req.body;
+
     const progressData = await CourseProgrss.findOne({ userId, courseId });
     return res.json({ success: true, progressData });
   } catch (error) {
@@ -144,20 +162,22 @@ export const addUserRatimg = async (req, res) => {
       return res.json({ success: false, message: "Course Not Found" });
     }
     const user = await User.findById(userId);
-    if (!user || user.enrolledCourses.includes(courseId)) {
+    if (!user || !user.enrolledCourses.includes(courseId)) {
       return res.json({
         success: false,
         message: "user has not purchase the course",
       });
     }
-    const existingRatingIndex = course.courseRatings.findIndex(
+    const existingRatingIndex = course.courseRating?.findIndex(
       (rating) => rating.userId === userId
     );
 
+    console.log("ratings---------------" + course.courseRating);
+
     if (existingRatingIndex > -1) {
-      course.courseRatings[existingRatingIndex].rating = rating;
+      course.courseRating[existingRatingIndex].rating = rating;
     } else {
-      course.courseRatings.push({ userId, rating });
+      course.courseRating?.push({ userId, rating });
     }
     await course.save();
     return res.json({ success: true, message: "Rating Added" });

@@ -1,11 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import uniqid from "uniqid";
 import Quill from "quill";
 import { assets } from "../../assets/assets";
+import { AppContext } from "../../context/AppContext";
+import { toast } from "react-toastify";
+import axios from "axios";
 
 const AddCourse = () => {
   const quilRef = useRef(null);
   const editorRef = useRef(null);
+
+  const { backendUrl, getToken } = useContext(AppContext);
 
   const [courseTitle, setCourseTitle] = useState("");
   const [coursePrice, setCoursePrice] = useState(0);
@@ -20,7 +25,6 @@ const AddCourse = () => {
     lectureUrl: "",
     isPreviewFree: false,
   });
-  console.log("c--------------------chapters", chapters);
 
   const handleChapter = (action, chapterId) => {
     if (action === "add") {
@@ -94,7 +98,47 @@ const AddCourse = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    try {
+      e.preventDefault();
+      if (!image) {
+        toast.error("Thumbnail not selected");
+      }
+      const courseData = {
+        courseTitle,
+        courseDescription: quilRef.current.root.innerHTML,
+        coursePrice: Number(coursePrice),
+        discount: Number(discount),
+        courseContent: chapters,
+      };
+
+      const formData = new FormData();
+
+      formData.append("courseData", JSON.stringify(courseData));
+      formData.append("image", image);
+
+      const token = await getToken();
+      const { data } = await axios.post(
+        backendUrl + "/api/educator/add-course",
+        formData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (data.success) {
+        console.log(data);
+
+        toast.success(data.message);
+        setCourseTitle("");
+        setCoursePrice(0);
+        setDiscount(0);
+        setImage(null);
+        setChapters([]);
+        quilRef.current.root.innerHTML = "";
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
